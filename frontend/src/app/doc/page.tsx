@@ -66,9 +66,7 @@ export default function Documentation() {
         </section>
       </main>
       
-      <footer className="bg-white p-4 text-center">
-        <span>&copy; 2025 学习与工具平台. All rights reserved.</span>
-      </footer>
+      
     </div>
   );
 }
