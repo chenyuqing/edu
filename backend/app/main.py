@@ -3,9 +3,32 @@ from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from . import auth
+from fastapi import Depends
+
+class WalletLoginRequest(BaseModel):
+    address: str
+    signature: Optional[str] = None
 
 app = FastAPI()
+
+# Create admin user on startup
+@app.on_event("startup")
+async def create_admin_user():
+    admin_username = "admin"
+    admin_email = "123@open.com"
+    admin_password = "open"
+    
+    if admin_username not in auth.fake_users_db:
+        hashed_password = auth.get_password_hash(admin_password)
+        admin_dict = {
+            "username": admin_username,
+            "email": admin_email,
+            "hashed_password": hashed_password,
+            "disabled": False
+        }
+        auth.fake_users_db[admin_username] = admin_dict
 
 # Configure CORS
 app.add_middleware(
@@ -20,9 +43,34 @@ app.add_middleware(
 async def health_check():
     return {"status": "healthy"}
 
+@app.post("/api/wallet/login")
+async def wallet_login(wallet_data: WalletLoginRequest):
+    try:
+        user = auth.authenticate_user(auth.fake_users_db, wallet_address=wallet_data.address)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Failed to authenticate with wallet",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = auth.create_access_token(
+            data={
+                "sub": user.username,
+                "wallet_address": wallet_data.address
+            },
+            expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
 @app.post("/api/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = auth.authenticate_user(auth.fake_users_db, form_data.username, form_data.password)
+    user = auth.authenticate_user(auth.fake_users_db, username=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -3,12 +3,23 @@
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
 export default function Header() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, walletAddress, logout } = useAuth();
+  const [connecting, setConnecting] = useState(false);
   const pathname = usePathname();
 
   const isActivePath = (path: string) => pathname === path;
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/';
+  };
+
+  const displayAddress = walletAddress ? 
+    `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 
+    user?.username;
 
   return (
     <header className="bg-white shadow-sm p-4">
@@ -48,6 +59,22 @@ export default function Header() {
               >
                 工具
               </Link>
+              <Link
+                href="/community"
+                className={`${
+                  isActivePath('/community') ? 'text-blue-600 font-medium' : 'text-gray-700 hover:text-blue-600'
+                }`}
+              >
+                社区
+              </Link>
+              <Link
+                href="https://www.buymeacoffee.com/example"
+                className="text-gray-700 hover:text-blue-600 font-medium"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                请我喝杯咖啡
+              </Link>
             </>
           )}
           <Link
@@ -62,9 +89,11 @@ export default function Header() {
         <div className="flex items-center space-x-4">
           {isAuthenticated ? (
             <>
-              <span className="text-gray-700">{user?.username}</span>
+              <span className="text-gray-700 font-mono">
+                {displayAddress}
+              </span>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="text-gray-700 hover:text-blue-600 font-medium"
               >
                 退出
@@ -72,12 +101,11 @@ export default function Header() {
             </>
           ) : (
             <Link
-              href="/login"
-              className={`${
-                isActivePath('/login') ? 'text-blue-600 font-medium' : 'text-gray-700 hover:text-blue-600'
-              }`}
+              href="/connect2wallet"
+              className="text-gray-700 hover:text-blue-600 font-medium"
+              style={{ pointerEvents: connecting ? 'none' : 'auto', opacity: connecting ? 0.5 : 1 }}
             >
-              登录/注册
+              连接钱包
             </Link>
           )}
         </div>
